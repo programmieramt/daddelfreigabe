@@ -13,7 +13,28 @@ data class Settings(
     val serverUrl: String = "",
     val username: String = "",
     val password: String = "",
-    val clientId: String = ""
+    val clientIp: String = "",
+    val services: List<String> = listOf("youtube")
+)
+
+val KNOWN_SERVICES = listOf(
+    "youtube" to "YouTube",
+    "tiktok" to "TikTok",
+    "discord" to "Discord",
+    "twitter" to "X (Twitter)",
+    "facebook" to "Facebook",
+    "instagram" to "Instagram",
+    "snapchat" to "Snapchat",
+    "twitch" to "Twitch",
+    "steam" to "Steam",
+    "epic_games" to "Epic Games",
+    "reddit" to "Reddit",
+    "spotify" to "Spotify",
+    "netflix" to "Netflix",
+    "amazon" to "Amazon",
+    "whatsapp" to "WhatsApp",
+    "telegram" to "Telegram",
+    "pinterest" to "Pinterest"
 )
 
 class SettingsStore(private val context: Context) {
@@ -22,7 +43,8 @@ class SettingsStore(private val context: Context) {
         val SERVER_URL = stringPreferencesKey("server_url")
         val USERNAME = stringPreferencesKey("username")
         val PASSWORD = stringPreferencesKey("password")
-        val CLIENT_ID = stringPreferencesKey("client_id")
+        val CLIENT_IP = stringPreferencesKey("client_ip")
+        val SERVICES = stringPreferencesKey("services")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { prefs ->
@@ -30,7 +52,9 @@ class SettingsStore(private val context: Context) {
             serverUrl = prefs[SERVER_URL] ?: "",
             username = prefs[USERNAME] ?: "",
             password = prefs[PASSWORD] ?: "",
-            clientId = prefs[CLIENT_ID] ?: ""
+            clientIp = prefs[CLIENT_IP] ?: "",
+            services = prefs[SERVICES]?.split(",")?.filter { it.isNotBlank() }
+                ?: listOf("youtube")
         )
     }
 
@@ -39,7 +63,8 @@ class SettingsStore(private val context: Context) {
             prefs[SERVER_URL] = settings.serverUrl
             prefs[USERNAME] = settings.username
             prefs[PASSWORD] = settings.password
-            prefs[CLIENT_ID] = settings.clientId
+            prefs[CLIENT_IP] = settings.clientIp
+            prefs[SERVICES] = settings.services.joinToString(",")
         }
     }
 }

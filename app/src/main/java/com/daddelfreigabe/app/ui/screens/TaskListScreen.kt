@@ -3,6 +3,8 @@ package com.daddelfreigabe.app.ui.screens
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +24,8 @@ import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -147,14 +151,14 @@ fun TaskListScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun StatusCard(uiState: UiState) {
-    val isBlocked = uiState.isClientBlocked
     val containerColor by animateColorAsState(
-        targetValue = when (isBlocked) {
-            true -> RedContainer
-            false -> GreenContainer
-            null -> MaterialTheme.colorScheme.surfaceVariant
+        targetValue = when {
+            uiState.servicesUnlocked -> GreenContainer
+            uiState.blockedServiceLabels.isNotEmpty() -> RedContainer
+            else -> MaterialTheme.colorScheme.surfaceVariant
         },
         label = "statusColor"
     )
@@ -163,37 +167,78 @@ private fun StatusCard(uiState: UiState) {
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(16.dp)
         ) {
-            if (uiState.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp))
-            } else {
-                Icon(
-                    imageVector = if (isBlocked == false) Icons.Default.LockOpen else Icons.Default.Lock,
-                    contentDescription = null,
-                    tint = if (isBlocked == false) Green40 else Red40
-                )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (uiState.isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                } else {
+                    Icon(
+                        imageVector = if (uiState.servicesUnlocked) Icons.Default.LockOpen else Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = if (uiState.servicesUnlocked) Green40 else Red40
+                    )
+                }
+
+                Column {
+                    Text(
+                        text = when {
+                            uiState.servicesUnlocked -> "Freigeschaltet"
+                            uiState.blockedServiceLabels.isNotEmpty() -> "Gesperrt"
+                            else -> "Status unbekannt"
+                        },
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    if (uiState.settings.clientIp.isNotBlank()) {
+                        Text(
+                            text = uiState.settings.clientIp,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
             }
 
-            Column {
-                Text(
-                    text = when (isBlocked) {
-                        true -> "Gesperrt"
-                        false -> "Freigeschaltet"
-                        null -> "Status unbekannt"
-                    },
-                    style = MaterialTheme.typography.titleMedium
-                )
-                if (uiState.settings.clientId.isNotBlank()) {
-                    Text(
-                        text = uiState.settings.clientId,
-                        style = MaterialTheme.typography.bodySmall
-                    )
+            if (uiState.blockedServiceLabels.isNotEmpty() || uiState.unlockedServiceLabels.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    uiState.blockedServiceLabels.forEach { label ->
+                        AssistChip(
+                            onClick = {},
+                            label = { Text(label) },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Lock,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = RedContainer
+                            )
+                        )
+                    }
+                    uiState.unlockedServiceLabels.forEach { label ->
+                        AssistChip(
+                            onClick = {},
+                            label = { Text(label) },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.LockOpen,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = GreenContainer
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -242,7 +287,7 @@ private fun ActionButtons(uiState: UiState, onUnlock: () -> Unit, onLock: () -> 
         Button(
             onClick = onUnlock,
             modifier = Modifier.weight(1f),
-            enabled = uiState.allTasksCompleted && !uiState.isLoading && uiState.settings.clientId.isNotBlank(),
+            enabled = uiState.allTasksCompleted && !uiState.isLoading && uiState.settings.clientIp.isNotBlank(),
             colors = ButtonDefaults.buttonColors(containerColor = Green40)
         ) {
             Icon(Icons.Default.LockOpen, contentDescription = null)
@@ -252,7 +297,7 @@ private fun ActionButtons(uiState: UiState, onUnlock: () -> Unit, onLock: () -> 
         Button(
             onClick = onLock,
             modifier = Modifier.weight(1f),
-            enabled = !uiState.isLoading && uiState.settings.clientId.isNotBlank(),
+            enabled = !uiState.isLoading && uiState.settings.clientIp.isNotBlank(),
             colors = ButtonDefaults.buttonColors(containerColor = Red40)
         ) {
             Icon(Icons.Default.Lock, contentDescription = null)
