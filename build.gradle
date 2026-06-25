@@ -1,0 +1,28 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.11.1'
+    }
+}
+
+plugins {
+    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
+    id("org.jetbrains.kotlin.plugin.compose") version "2.2.20" apply false
+    id("com.google.devtools.ksp") version "2.2.20-2.0.3" apply false
+}
+
+ext {
+    applicationName = 'daddelfreigabe'
+    parentVersionCode = 1_00_00_01
+    parentVersionName = '1.00.00-01'
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
