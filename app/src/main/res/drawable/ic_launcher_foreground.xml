@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Unlocked padlock shackle -->
+    <path
+        android:pathData="M44,48 L44,38 C44,30.27 50.27,24 58,24 C65.73,24 72,30.27 72,38 L72,34"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- Padlock body -->
+    <path
+        android:pathData="M36,48 L72,48 C74.2,48 76,49.8 76,52 L76,76 C76,78.2 74.2,80 72,80 L36,80 C33.8,80 32,78.2 32,76 L32,52 C32,49.8 33.8,48 36,48 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Gamepad / play icon inside padlock -->
+    <path
+        android:pathData="M48,58 L62,64 L48,70 Z"
+        android:fillColor="#2E7D32" />
+</vector>
