@@ -6,6 +6,7 @@ import okhttp3.Credentials
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
@@ -98,11 +99,13 @@ class AdGuardApi(
         }
 
         withContext(Dispatchers.IO) {
+            val body = update.toString().encodeToByteArray()
+                .toRequestBody(jsonMediaType)
+
             val request = Request.Builder()
                 .url("${baseUrl()}/control/clients/update")
                 .header("Authorization", credential)
-                .header("Content-Type", "application/json")
-                .post(update.toString().toRequestBody(jsonMediaType))
+                .post(body)
                 .build()
 
             val response = client.newCall(request).execute()

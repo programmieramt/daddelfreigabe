@@ -40,6 +40,15 @@ android {
         buildConfig = true
     }
 
+    signingConfigs {
+        release {
+            storeFile file("../keystore.jks")
+            storePassword System.getenv("KEYSTORE_PASSWORD") ?: "android"
+            keyAlias "androiddebugkey"
+            keyPassword System.getenv("KEY_PASSWORD") ?: "android"
+        }
+    }
+
     buildTypes {
         debug {
             minifyEnabled false
@@ -50,6 +59,7 @@ android {
             minifyEnabled true
             shrinkResources true
             debuggable false
+            signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
