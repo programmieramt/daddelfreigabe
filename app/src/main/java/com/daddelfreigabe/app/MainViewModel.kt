@@ -149,29 +149,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun lockServices() {
-        viewModelScope.launch {
-            val settings = uiState.value.settings
-            if (settings.clientIp.isBlank()) {
-                _message.value = "Keine Client-IP konfiguriert"
-                return@launch
-            }
-
-            _isLoading.value = true
-            val api = createApi(settings)
-            api.blockServices(settings.clientIp, settings.services)
-                .onSuccess {
-                    _blockedServices.value = (_blockedServices.value + settings.services).distinct()
-                    val labels = KNOWN_SERVICES.toMap()
-                    val names = settings.services.map { labels[it] ?: it }
-                    _message.value = "${names.joinToString(", ")} gesperrt."
-                    taskRepository.resetTasks()
-                }
-                .onFailure { _message.value = "Fehler: ${it.message}" }
-            _isLoading.value = false
-        }
-    }
-
     private fun createApi(settings: Settings) = AdGuardApi(
         serverUrl = settings.serverUrl,
         username = settings.username,

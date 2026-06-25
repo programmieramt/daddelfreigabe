@@ -68,7 +68,6 @@ fun TaskListScreen(
     onAddTask: (String) -> Unit,
     onRemoveTask: (String) -> Unit,
     onUnlock: () -> Unit,
-    onLock: () -> Unit,
     onRefresh: () -> Unit,
     onSettingsClick: () -> Unit,
     onMessageShown: () -> Unit
@@ -136,7 +135,7 @@ fun TaskListScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            ActionButtons(uiState, onUnlock, onLock)
+            UnlockButton(uiState, onUnlock)
         }
     }
 
@@ -279,30 +278,15 @@ private fun TaskItem(task: Task, onToggle: () -> Unit, onRemove: () -> Unit) {
 }
 
 @Composable
-private fun ActionButtons(uiState: UiState, onUnlock: () -> Unit, onLock: () -> Unit) {
-    Row(
+private fun UnlockButton(uiState: UiState, onUnlock: () -> Unit) {
+    Button(
+        onClick = onUnlock,
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        enabled = uiState.allTasksCompleted && !uiState.isLoading && uiState.settings.clientIp.isNotBlank(),
+        colors = ButtonDefaults.buttonColors(containerColor = Green40)
     ) {
-        Button(
-            onClick = onUnlock,
-            modifier = Modifier.weight(1f),
-            enabled = uiState.allTasksCompleted && !uiState.isLoading && uiState.settings.clientIp.isNotBlank(),
-            colors = ButtonDefaults.buttonColors(containerColor = Green40)
-        ) {
-            Icon(Icons.Default.LockOpen, contentDescription = null)
-            Text("  Freischalten", modifier = Modifier.padding(start = 4.dp))
-        }
-
-        Button(
-            onClick = onLock,
-            modifier = Modifier.weight(1f),
-            enabled = !uiState.isLoading && uiState.settings.clientIp.isNotBlank(),
-            colors = ButtonDefaults.buttonColors(containerColor = Red40)
-        ) {
-            Icon(Icons.Default.Lock, contentDescription = null)
-            Text("  Sperren", modifier = Modifier.padding(start = 4.dp))
-        }
+        Icon(Icons.Default.LockOpen, contentDescription = null)
+        Text("  Freischalten", modifier = Modifier.padding(start = 4.dp))
     }
 }
 

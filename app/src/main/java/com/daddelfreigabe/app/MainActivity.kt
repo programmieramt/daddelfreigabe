@@ -32,7 +32,6 @@ class MainActivity : ComponentActivity() {
                             onAddTask = viewModel::addTask,
                             onRemoveTask = viewModel::removeTask,
                             onUnlock = viewModel::unlockServices,
-                            onLock = viewModel::lockServices,
                             onRefresh = viewModel::refreshStatus,
                             onSettingsClick = { navController.navigate("settings") },
                             onMessageShown = viewModel::clearMessage

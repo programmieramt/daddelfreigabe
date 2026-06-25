@@ -77,10 +77,10 @@ class AdGuardApi(
         val (_, clientObj) = findClientByIp(clientIp)
             ?: throw Exception("Client $clientIp nicht gefunden")
 
-        val blockedServices = clientObj.optJSONObject("blocked_services")
-        val ids = blockedServices?.optJSONArray("ids") ?: return@runCatching emptyList()
+        val blocked = clientObj.optJSONArray("blocked_services")
+            ?: return@runCatching emptyList()
 
-        (0 until ids.length()).map { ids.getString(it) }
+        (0 until blocked.length()).map { blocked.getString(it) }
     }
 
     suspend fun setBlockedServices(
@@ -90,10 +90,7 @@ class AdGuardApi(
         val (name, clientObj) = findClientByIp(clientIp)
             ?: throw Exception("Client $clientIp nicht gefunden")
 
-        val blockedServices = clientObj.optJSONObject("blocked_services")
-            ?: JSONObject()
-        blockedServices.put("ids", JSONArray(services))
-        clientObj.put("blocked_services", blockedServices)
+        clientObj.put("blocked_services", JSONArray(services))
 
         val update = JSONObject().apply {
             put("name", name)
@@ -104,6 +101,7 @@ class AdGuardApi(
             val request = Request.Builder()
                 .url("${baseUrl()}/control/clients/update")
                 .header("Authorization", credential)
+                .header("Content-Type", "application/json")
                 .post(update.toString().toRequestBody(jsonMediaType))
                 .build()
 
@@ -125,13 +123,4 @@ class AdGuardApi(
         }
     }
 
-    suspend fun blockServices(
-        clientIp: String,
-        servicesToBlock: List<String>
-    ): Result<Unit> {
-        return getBlockedServices(clientIp).mapCatching { current ->
-            val updated = (current + servicesToBlock).distinct()
-            setBlockedServices(clientIp, updated).getOrThrow()
-        }
-    }
 }
