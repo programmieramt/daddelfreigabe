@@ -55,6 +55,24 @@ class AdGuardApi(
         null
     }
 
+    suspend fun testConnection(): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val url = "${baseUrl()}/control/status"
+            val request = Request.Builder()
+                .url(url)
+                .header("Authorization", credential)
+                .get()
+                .build()
+
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: ""
+            if (!response.isSuccessful) {
+                throw Exception("HTTP ${response.code}: $body\nURL: $url\nAuth: Basic ${credential.substringAfter("Basic ")}")
+            }
+            "Verbunden! (${response.code})"
+        }
+    }
+
     suspend fun getBlockedServices(clientIp: String): Result<List<String>> = runCatching {
         val (_, clientObj) = findClientByIp(clientIp)
             ?: throw Exception("Client $clientIp nicht gefunden")

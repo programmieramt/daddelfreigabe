@@ -42,6 +42,7 @@ class MainActivity : ComponentActivity() {
                         SettingsScreen(
                             currentSettings = uiState.settings,
                             onSave = viewModel::saveSettings,
+                            onTestConnection = viewModel::testConnection,
                             onBack = { navController.popBackStack() }
                         )
                     }

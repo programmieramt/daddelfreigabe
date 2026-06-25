@@ -102,6 +102,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _message.value = null
     }
 
+    fun testConnection(settings: Settings) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            val api = createApi(settings)
+            api.testConnection()
+                .onSuccess { _message.value = it }
+                .onFailure { _message.value = "Fehler: ${it.message}" }
+            _isLoading.value = false
+        }
+    }
+
     fun refreshStatus() {
         viewModelScope.launch {
             val settings = uiState.value.settings

@@ -12,7 +12,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -30,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.daddelfreigabe.app.data.KNOWN_SERVICES
 import com.daddelfreigabe.app.data.Settings
@@ -39,6 +43,7 @@ import com.daddelfreigabe.app.data.Settings
 fun SettingsScreen(
     currentSettings: Settings,
     onSave: (Settings) -> Unit,
+    onTestConnection: (Settings) -> Unit,
     onBack: () -> Unit
 ) {
     var serverUrl by remember { mutableStateOf(currentSettings.serverUrl) }
@@ -46,6 +51,7 @@ fun SettingsScreen(
     var password by remember { mutableStateOf(currentSettings.password) }
     var clientIp by remember { mutableStateOf(currentSettings.clientIp) }
     var selectedServices by remember { mutableStateOf(currentSettings.services.toSet()) }
+    var passwordVisible by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -92,7 +98,15 @@ fun SettingsScreen(
                 label = { Text("Passwort") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                visualTransformation = PasswordVisualTransformation()
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (passwordVisible) "Passwort verbergen" else "Passwort anzeigen"
+                        )
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -137,6 +151,28 @@ fun SettingsScreen(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = {
+                    onTestConnection(
+                        Settings(
+                            serverUrl = serverUrl.trim(),
+                            username = username.trim(),
+                            password = password,
+                            clientIp = clientIp.trim(),
+                            services = selectedServices.toList()
+                        )
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = serverUrl.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            ) {
+                Text("Verbindung testen")
+            }
 
             Button(
                 onClick = {
