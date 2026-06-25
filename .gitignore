@@ -9,6 +9,5 @@ app/build
 .externalNativeBuild
 .cxx
 local.properties
-keystore.jks
 scripts/.env
 .claude/

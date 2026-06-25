@@ -40,17 +40,26 @@ android {
         buildConfig = true
     }
 
+    signingConfigs {
+        app {
+            storeFile file("../keystore.jks")
+            storePassword "daddelfreigabe"
+            keyAlias "daddelfreigabe"
+            keyPassword "daddelfreigabe"
+        }
+    }
+
     buildTypes {
         debug {
             minifyEnabled false
             debuggable true
-            applicationIdSuffix ".debug"
+            signingConfig signingConfigs.app
         }
         release {
             minifyEnabled false
             shrinkResources false
             debuggable false
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.app
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
