@@ -10,4 +10,5 @@ app/build
 .cxx
 local.properties
 keystore.jks
+scripts/.env
 .claude/
