@@ -12,15 +12,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -35,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.daddelfreigabe.app.data.ClientConfig
 import com.daddelfreigabe.app.data.KNOWN_SERVICES
 import com.daddelfreigabe.app.data.Settings
 
@@ -42,15 +47,16 @@ import com.daddelfreigabe.app.data.Settings
 @Composable
 fun SettingsScreen(
     currentSettings: Settings,
-    onSave: (Settings) -> Unit,
-    onTestConnection: (Settings) -> Unit,
+    onSaveServer: (String, String, String) -> Unit,
+    onTestConnection: (String, String, String) -> Unit,
+    onRemoveClient: (String) -> Unit,
+    onEditClient: (String) -> Unit,
+    onAddClient: () -> Unit,
     onBack: () -> Unit
 ) {
     var serverUrl by remember { mutableStateOf(currentSettings.serverUrl) }
     var username by remember { mutableStateOf(currentSettings.username) }
     var password by remember { mutableStateOf(currentSettings.password) }
-    var clientIp by remember { mutableStateOf(currentSettings.clientIp) }
-    var selectedServices by remember { mutableStateOf(currentSettings.services.toSet()) }
     var passwordVisible by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -109,88 +115,83 @@ fun SettingsScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text("Client", style = MaterialTheme.typography.titleSmall)
-
-            OutlinedTextField(
-                value = clientIp,
-                onValueChange = { clientIp = it },
-                label = { Text("Client IP-Adresse") },
-                placeholder = { Text("192.168.68.53") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text("Dienste zum Freischalten", style = MaterialTheme.typography.titleSmall)
-            Text(
-                "Diese Dienste werden nach Erledigung aller Aufgaben freigeschaltet.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            KNOWN_SERVICES.forEach { (id, label) ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = id in selectedServices,
-                        onCheckedChange = { checked ->
-                            selectedServices = if (checked) {
-                                selectedServices + id
-                            } else {
-                                selectedServices - id
-                            }
-                        }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {
+                        onTestConnection(serverUrl.trim(), username.trim(), password)
+                    },
+                    enabled = serverUrl.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                     )
-                    Text(label, modifier = Modifier.padding(start = 4.dp))
-                }
+                ) { Text("Testen") }
+
+                Button(
+                    onClick = {
+                        onSaveServer(serverUrl.trim(), username.trim(), password)
+                    },
+                    enabled = serverUrl.isNotBlank()
+                ) { Text("Speichern") }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Button(
-                onClick = {
-                    onTestConnection(
-                        Settings(
-                            serverUrl = serverUrl.trim(),
-                            username = username.trim(),
-                            password = password,
-                            clientIp = clientIp.trim(),
-                            services = selectedServices.toList()
-                        )
-                    )
-                },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                enabled = serverUrl.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                )
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Verbindung testen")
+                Text("Clients", style = MaterialTheme.typography.titleSmall)
+                IconButton(onClick = onAddClient) {
+                    Icon(Icons.Default.Add, contentDescription = "Client hinzufügen")
+                }
             }
 
-            Button(
-                onClick = {
-                    onSave(
-                        Settings(
-                            serverUrl = serverUrl.trim(),
-                            username = username.trim(),
-                            password = password,
-                            clientIp = clientIp.trim(),
-                            services = selectedServices.toList()
-                        )
-                    )
-                    onBack()
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = serverUrl.isNotBlank() && clientIp.isNotBlank() && selectedServices.isNotEmpty()
-            ) {
-                Text("Speichern")
+            if (currentSettings.clients.isEmpty()) {
+                Text(
+                    "Noch keine Clients konfiguriert.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            currentSettings.clients.forEach { client ->
+                ClientCard(
+                    client = client,
+                    onEdit = { onEditClient(client.id) },
+                    onRemove = { onRemoveClient(client.id) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClientCard(client: ClientConfig, onEdit: () -> Unit, onRemove: () -> Unit) {
+    val labelMap = KNOWN_SERVICES.toMap()
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(client.name, style = MaterialTheme.typography.titleSmall)
+                Text(client.ip, style = MaterialTheme.typography.bodySmall)
+                Text(
+                    client.services.map { labelMap[it] ?: it }.joinToString(", "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            IconButton(onClick = onEdit) {
+                Icon(Icons.Default.Edit, contentDescription = "Bearbeiten")
+            }
+            IconButton(onClick = onRemove) {
+                Icon(Icons.Default.Delete, contentDescription = "Löschen", tint = MaterialTheme.colorScheme.error)
             }
         }
     }

@@ -53,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.daddelfreigabe.app.ClientStatus
 import com.daddelfreigabe.app.UiState
 import com.daddelfreigabe.app.data.Task
 import com.daddelfreigabe.app.ui.theme.Green40
@@ -109,9 +110,25 @@ fun TaskListScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            StatusCard(uiState)
+            if (uiState.clientStatuses.isEmpty() && !uiState.isLoading) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Text(
+                        text = "Keine Clients konfiguriert. Tippe auf Einstellungen.",
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            } else {
+                uiState.clientStatuses.forEach { status ->
+                    ClientStatusCard(status, uiState.isLoading)
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = "Aufgaben",
@@ -135,7 +152,15 @@ fun TaskListScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            UnlockButton(uiState, onUnlock)
+            Button(
+                onClick = onUnlock,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = uiState.allTasksCompleted && !uiState.isLoading && uiState.clientStatuses.isNotEmpty(),
+                colors = ButtonDefaults.buttonColors(containerColor = Green40)
+            ) {
+                Icon(Icons.Default.LockOpen, contentDescription = null)
+                Text("  Freischalten", modifier = Modifier.padding(start = 4.dp))
+            }
         }
     }
 
@@ -152,11 +177,11 @@ fun TaskListScreen(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun StatusCard(uiState: UiState) {
+private fun ClientStatusCard(status: ClientStatus, isLoading: Boolean) {
     val containerColor by animateColorAsState(
         targetValue = when {
-            uiState.servicesUnlocked -> GreenContainer
-            uiState.blockedServiceLabels.isNotEmpty() -> RedContainer
+            status.servicesUnlocked -> GreenContainer
+            status.blockedServiceLabels.isNotEmpty() -> RedContainer
             else -> MaterialTheme.colorScheme.surfaceVariant
         },
         label = "statusColor"
@@ -169,73 +194,49 @@ private fun StatusCard(uiState: UiState) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(12.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
                 } else {
                     Icon(
-                        imageVector = if (uiState.servicesUnlocked) Icons.Default.LockOpen else Icons.Default.Lock,
+                        imageVector = if (status.servicesUnlocked) Icons.Default.LockOpen else Icons.Default.Lock,
                         contentDescription = null,
-                        tint = if (uiState.servicesUnlocked) Green40 else Red40
+                        modifier = Modifier.size(20.dp),
+                        tint = if (status.servicesUnlocked) Green40 else Red40
                     )
                 }
-
                 Column {
-                    Text(
-                        text = when {
-                            uiState.servicesUnlocked -> "Freigeschaltet"
-                            uiState.blockedServiceLabels.isNotEmpty() -> "Gesperrt"
-                            else -> "Status unbekannt"
-                        },
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    if (uiState.settings.clientIp.isNotBlank()) {
-                        Text(
-                            text = uiState.settings.clientIp,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
+                    Text(status.config.name, style = MaterialTheme.typography.titleSmall)
+                    Text(status.config.ip, style = MaterialTheme.typography.bodySmall)
                 }
             }
 
-            if (uiState.blockedServiceLabels.isNotEmpty() || uiState.unlockedServiceLabels.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    uiState.blockedServiceLabels.forEach { label ->
+            if (status.blockedServiceLabels.isNotEmpty() || status.unlockedServiceLabels.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    status.blockedServiceLabels.forEach { label ->
                         AssistChip(
                             onClick = {},
-                            label = { Text(label) },
+                            label = { Text(label, style = MaterialTheme.typography.labelSmall) },
                             leadingIcon = {
-                                Icon(
-                                    Icons.Default.Lock,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
+                                Icon(Icons.Default.Lock, null, modifier = Modifier.size(14.dp))
                             },
-                            colors = AssistChipDefaults.assistChipColors(
-                                containerColor = RedContainer
-                            )
+                            colors = AssistChipDefaults.assistChipColors(containerColor = RedContainer)
                         )
                     }
-                    uiState.unlockedServiceLabels.forEach { label ->
+                    status.unlockedServiceLabels.forEach { label ->
                         AssistChip(
                             onClick = {},
-                            label = { Text(label) },
+                            label = { Text(label, style = MaterialTheme.typography.labelSmall) },
                             leadingIcon = {
-                                Icon(
-                                    Icons.Default.LockOpen,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
+                                Icon(Icons.Default.LockOpen, null, modifier = Modifier.size(14.dp))
                             },
-                            colors = AssistChipDefaults.assistChipColors(
-                                containerColor = GreenContainer
-                            )
+                            colors = AssistChipDefaults.assistChipColors(containerColor = GreenContainer)
                         )
                     }
                 }
@@ -274,19 +275,6 @@ private fun TaskItem(task: Task, onToggle: () -> Unit, onRemove: () -> Unit) {
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun UnlockButton(uiState: UiState, onUnlock: () -> Unit) {
-    Button(
-        onClick = onUnlock,
-        modifier = Modifier.fillMaxWidth(),
-        enabled = uiState.allTasksCompleted && !uiState.isLoading && uiState.settings.clientIp.isNotBlank(),
-        colors = ButtonDefaults.buttonColors(containerColor = Green40)
-    ) {
-        Icon(Icons.Default.LockOpen, contentDescription = null)
-        Text("  Freischalten", modifier = Modifier.padding(start = 4.dp))
     }
 }
 

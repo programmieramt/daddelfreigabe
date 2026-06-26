@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.daddelfreigabe.app.data.AdGuardApi
+import com.daddelfreigabe.app.data.ClientConfig
 import com.daddelfreigabe.app.data.KNOWN_SERVICES
 import com.daddelfreigabe.app.data.Settings
 import com.daddelfreigabe.app.data.SettingsStore
@@ -16,22 +17,18 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-data class UiState(
-    val tasks: List<Task> = emptyList(),
-    val settings: Settings = Settings(),
-    val blockedServices: List<String> = emptyList(),
-    val isLoading: Boolean = false,
-    val message: String? = null,
-    val allTasksCompleted: Boolean = false
+data class ClientStatus(
+    val config: ClientConfig,
+    val blockedServices: List<String> = emptyList()
 ) {
     val servicesUnlocked: Boolean
-        get() = settings.services.isNotEmpty() &&
-                settings.services.none { it in blockedServices }
+        get() = config.services.isNotEmpty() &&
+                config.services.none { it in blockedServices }
 
     val blockedServiceLabels: List<String>
         get() {
             val labelMap = KNOWN_SERVICES.toMap()
-            return settings.services
+            return config.services
                 .filter { it in blockedServices }
                 .map { labelMap[it] ?: it }
         }
@@ -39,10 +36,22 @@ data class UiState(
     val unlockedServiceLabels: List<String>
         get() {
             val labelMap = KNOWN_SERVICES.toMap()
-            return settings.services
+            return config.services
                 .filter { it !in blockedServices }
                 .map { labelMap[it] ?: it }
         }
+}
+
+data class UiState(
+    val tasks: List<Task> = emptyList(),
+    val settings: Settings = Settings(),
+    val clientStatuses: List<ClientStatus> = emptyList(),
+    val isLoading: Boolean = false,
+    val message: String? = null,
+    val allTasksCompleted: Boolean = false
+) {
+    val allClientsUnlocked: Boolean
+        get() = clientStatuses.isNotEmpty() && clientStatuses.all { it.servicesUnlocked }
 }
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -52,19 +61,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _isLoading = MutableStateFlow(false)
     private val _message = MutableStateFlow<String?>(null)
-    private val _blockedServices = MutableStateFlow<List<String>>(emptyList())
+    private val _clientStatuses = MutableStateFlow<List<ClientStatus>>(emptyList())
 
     val uiState: StateFlow<UiState> = combine(
         taskRepository.tasks,
         settingsStore.settings,
         _isLoading,
         _message,
-        _blockedServices
-    ) { tasks, settings, loading, message, blocked ->
+        _clientStatuses
+    ) { tasks, settings, loading, message, statuses ->
         UiState(
             tasks = tasks,
             settings = settings,
-            blockedServices = blocked,
+            clientStatuses = statuses,
             isLoading = loading,
             message = message,
             allTasksCompleted = tasks.isNotEmpty() && tasks.all { it.completed }
@@ -91,21 +100,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { taskRepository.resetTasks() }
     }
 
-    fun saveSettings(settings: Settings) {
+    fun saveServer(serverUrl: String, username: String, password: String) {
         viewModelScope.launch {
-            settingsStore.save(settings)
+            settingsStore.saveServer(serverUrl, username, password)
             refreshStatus()
         }
     }
 
-    fun clearMessage() {
-        _message.value = null
+    fun addClient(client: ClientConfig) {
+        viewModelScope.launch {
+            settingsStore.addClient(client)
+            refreshStatus()
+        }
     }
 
-    fun testConnection(settings: Settings) {
+    fun updateClient(client: ClientConfig) {
+        viewModelScope.launch {
+            settingsStore.updateClient(client)
+            refreshStatus()
+        }
+    }
+
+    fun removeClient(clientId: String) {
+        viewModelScope.launch {
+            settingsStore.removeClient(clientId)
+            _clientStatuses.value = _clientStatuses.value.filter { it.config.id != clientId }
+        }
+    }
+
+    fun testConnection(serverUrl: String, username: String, password: String) {
         viewModelScope.launch {
             _isLoading.value = true
-            val api = createApi(settings)
+            val api = AdGuardApi(serverUrl, username, password)
             api.testConnection()
                 .onSuccess { _message.value = it }
                 .onFailure { _message.value = "Fehler: ${it.message}" }
@@ -113,16 +139,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun clearMessage() {
+        _message.value = null
+    }
+
     fun refreshStatus() {
         viewModelScope.launch {
             val settings = uiState.value.settings
-            if (settings.serverUrl.isBlank() || settings.clientIp.isBlank()) return@launch
+            if (settings.serverUrl.isBlank() || settings.clients.isEmpty()) return@launch
 
             _isLoading.value = true
             val api = createApi(settings)
-            api.getBlockedServices(settings.clientIp)
-                .onSuccess { _blockedServices.value = it }
-                .onFailure { _message.value = "Verbindungsfehler: ${it.message}" }
+
+            val statuses = settings.clients.map { client ->
+                val blocked = api.getBlockedServices(client.ip)
+                    .getOrElse {
+                        _message.value = "Fehler bei ${client.name}: ${it.message}"
+                        emptyList()
+                    }
+                ClientStatus(config = client, blockedServices = blocked)
+            }
+            _clientStatuses.value = statuses
             _isLoading.value = false
         }
     }
@@ -130,21 +167,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun unlockServices() {
         viewModelScope.launch {
             val settings = uiState.value.settings
-            if (settings.clientIp.isBlank()) {
-                _message.value = "Keine Client-IP konfiguriert"
+            if (settings.clients.isEmpty()) {
+                _message.value = "Keine Clients konfiguriert"
                 return@launch
             }
 
             _isLoading.value = true
             val api = createApi(settings)
-            api.unblockServices(settings.clientIp, settings.services)
-                .onSuccess {
-                    _blockedServices.value = _blockedServices.value - settings.services.toSet()
-                    val labels = KNOWN_SERVICES.toMap()
-                    val names = settings.services.map { labels[it] ?: it }
-                    _message.value = "${names.joinToString(", ")} freigeschaltet!"
-                }
-                .onFailure { _message.value = "Fehler: ${it.message}" }
+            val results = mutableListOf<String>()
+
+            for (client in settings.clients) {
+                api.unblockServices(client.ip, client.services)
+                    .onSuccess { results.add(client.name) }
+                    .onFailure { _message.value = "Fehler bei ${client.name}: ${it.message}" }
+            }
+
+            if (results.isNotEmpty()) {
+                _message.value = "Freigeschaltet: ${results.joinToString(", ")}"
+            }
+            refreshStatus()
             _isLoading.value = false
         }
     }

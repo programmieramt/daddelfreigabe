@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.daddelfreigabe.app.ui.screens.ClientEditScreen
 import com.daddelfreigabe.app.ui.screens.SettingsScreen
 import com.daddelfreigabe.app.ui.screens.TaskListScreen
 import com.daddelfreigabe.app.ui.theme.DaddelfreigabeTheme
@@ -40,8 +41,25 @@ class MainActivity : ComponentActivity() {
                     composable("settings") {
                         SettingsScreen(
                             currentSettings = uiState.settings,
-                            onSave = viewModel::saveSettings,
+                            onSaveServer = viewModel::saveServer,
                             onTestConnection = viewModel::testConnection,
+                            onRemoveClient = viewModel::removeClient,
+                            onEditClient = { clientId -> navController.navigate("client/$clientId") },
+                            onAddClient = { navController.navigate("client/new") },
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable("client/{clientId}") { backStackEntry ->
+                        val clientId = backStackEntry.arguments?.getString("clientId")
+                        val existingClient = if (clientId == "new") null
+                            else uiState.settings.clients.find { it.id == clientId }
+
+                        ClientEditScreen(
+                            client = existingClient,
+                            onSave = { client ->
+                                if (clientId == "new") viewModel.addClient(client)
+                                else viewModel.updateClient(client)
+                            },
                             onBack = { navController.popBackStack() }
                         )
                     }
