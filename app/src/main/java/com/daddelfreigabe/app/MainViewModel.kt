@@ -81,6 +81,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UiState())
 
     init {
+        viewModelScope.launch { taskRepository.resetIfNewDay() }
         refreshStatus()
     }
 

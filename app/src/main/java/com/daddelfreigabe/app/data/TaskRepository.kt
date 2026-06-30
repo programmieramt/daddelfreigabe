@@ -9,8 +9,13 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.time.LocalDate
+import java.time.LocalDateTime
 
 private val Context.taskDataStore by preferencesDataStore(name = "tasks")
+
+/** Matches the nightly cron lock time, so the task day rolls over with it. */
+private const val DAY_CUTOFF_HOUR = 3
 
 @JsonClass(generateAdapter = true)
 data class Task(
@@ -23,6 +28,7 @@ class TaskRepository(private val context: Context) {
 
     private companion object {
         val TASKS_JSON = stringPreferencesKey("tasks_json")
+        val TASK_DAY = stringPreferencesKey("task_day")
     }
 
     private val moshi = Moshi.Builder().build()
@@ -57,7 +63,26 @@ class TaskRepository(private val context: Context) {
             val current = if (json != null) adapter.fromJson(json) ?: defaultTasks() else defaultTasks()
             val reset = current.map { it.copy(completed = false) }
             prefs[TASKS_JSON] = adapter.toJson(reset)
+            prefs[TASK_DAY] = currentTaskDay().toString()
         }
+    }
+
+    /** Resets tasks once per "task day" (rolls over at [DAY_CUTOFF_HOUR]), matching the nightly cron lock. */
+    suspend fun resetIfNewDay() {
+        context.taskDataStore.edit { prefs ->
+            val today = currentTaskDay().toString()
+            if (prefs[TASK_DAY] != today) {
+                val json = prefs[TASKS_JSON]
+                val current = if (json != null) adapter.fromJson(json) ?: defaultTasks() else defaultTasks()
+                prefs[TASKS_JSON] = adapter.toJson(current.map { it.copy(completed = false) })
+                prefs[TASK_DAY] = today
+            }
+        }
+    }
+
+    private fun currentTaskDay(): LocalDate {
+        val now = LocalDateTime.now()
+        return if (now.hour < DAY_CUTOFF_HOUR) now.toLocalDate().minusDays(1) else now.toLocalDate()
     }
 
     suspend fun addTask(title: String) {
